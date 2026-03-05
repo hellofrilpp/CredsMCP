@@ -114,7 +114,7 @@ env:
 
 ## Documentation
 
-Full docs and integration guides: **https://gaigenticai.github.io/CredsMCP**
+Full docs and integration guides: **https://hellofrilpp.github.io/CredsMCP**
 
 ## License
 

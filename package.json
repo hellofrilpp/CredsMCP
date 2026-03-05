@@ -32,13 +32,13 @@
     "encrypted",
     "api-keys"
   ],
-  "author": "Krishna <krishna@gaigentic.ai>",
+  "author": "Krishna <hello@frilpp.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gaigenticai/CredsMCP.git"
+    "url": "git+https://github.com/hellofrilpp/CredsMCP.git"
   },
-  "homepage": "https://gaigenticai.github.io/CredsMCP",
+  "homepage": "https://hellofrilpp.github.io/CredsMCP",
   "engines": {
     "node": ">=18"
   },
