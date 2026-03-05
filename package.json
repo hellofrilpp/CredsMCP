@@ -32,13 +32,8 @@
     "encrypted",
     "api-keys"
   ],
-  "author": "Krishna <hello@frilpp.com>",
+  "author": "chaosbird",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hellofrilpp/CredsMCP.git"
-  },
-  "homepage": "https://hellofrilpp.github.io/CredsMCP",
   "engines": {
     "node": ">=18"
   },
