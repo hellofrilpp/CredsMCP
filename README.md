@@ -6,7 +6,7 @@ Encrypted credential manager for AI coding tools.
 
 ## What is CredsMCP?
 
-CredsMCP is an [MCP server](https://modelcontextprotocol.io/) that securely stores and serves your cloud API credentials. Instead of copy-pasting API keys every session, your AI tools call `get_credentials("cloudflare", "gaigentic")` and get exactly what they need.
+CredsMCP is an [MCP server](https://modelcontextprotocol.io/) that securely stores and serves your cloud API credentials. Instead of copy-pasting API keys every session, your AI tools call `get_credentials("cloudflare", "work")` and get exactly what they need.
 
 - **AES-256-GCM** encrypted vault at `~/.credsmcp/vault.json`
 - **Multiple profiles** per service (work, personal, client projects)
@@ -29,7 +29,7 @@ export CREDSMCP_PASSWORD="your-secure-password"
 ```
 
 Then ask your AI tool to store credentials:
-> "Store my Cloudflare API key for the gaigentic account"
+> "Store my Cloudflare API key for the work account"
 
 ## Integration
 
@@ -114,7 +114,7 @@ env:
 
 ## Documentation
 
-Full docs and integration guides: **https://hellofrilpp.github.io/CredsMCP**
+Full docs and integration guides: **https://www.npmjs.com/package/credsmcp**
 
 ## License
 
