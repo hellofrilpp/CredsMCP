@@ -1,6 +1,6 @@
 {
   "name": "credsmcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Encrypted credential manager MCP server for AI coding tools. Securely store and serve API keys for Cloudflare, GitHub, Railway and more.",
   "type": "module",
   "main": "build/index.js",

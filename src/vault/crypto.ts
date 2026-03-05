@@ -6,8 +6,8 @@ const IV_LENGTH = 12;
 const KEY_LENGTH = 32;
 const TAG_LENGTH = 16;
 
-// scrypt defaults: N=2^17 (~128MB), r=8, p=1
-const DEFAULT_KDF_PARAMS = { N: 131072, r: 8, p: 1 };
+// scrypt defaults: N=2^14, r=8, p=1 — strong KDF within Node's default memory limit
+const DEFAULT_KDF_PARAMS = { N: 16384, r: 8, p: 1 };
 
 export function generateSalt(): string {
   return randomBytes(32).toString("hex");
