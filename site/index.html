@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CredsMCP — Encrypted Credential Manager for AI Tools</title>
+  <meta name="description" content="MCP server that securely stores and serves your cloud API credentials. AES-256-GCM encrypted. Works with Claude, Cursor, Windsurf, Codex, and any MCP-compatible tool.">
+  <meta property="og:title" content="CredsMCP — Encrypted Credential Manager for AI Tools">
+  <meta property="og:description" content="One vault. Every AI tool. All your API keys — encrypted, organized, and instantly available.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://gaigenticai.github.io/CredsMCP">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+          colors: {
+            vault: {
+              50: '#ecfeff',
+              100: '#cffafe',
+              200: '#a5f3fc',
+              300: '#67e8f9',
+              400: '#22d3ee',
+              500: '#06b6d4',
+              600: '#0891b2',
+              700: '#0e7490',
+              800: '#155e75',
+              900: '#164e63',
+            }
+          },
+          animation: {
+            'glow': 'glow 2s ease-in-out infinite alternate',
+          },
+          keyframes: {
+            glow: {
+              '0%': { boxShadow: '0 0 5px rgba(6, 182, 212, 0.2)' },
+              '100%': { boxShadow: '0 0 20px rgba(6, 182, 212, 0.4)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    body { background: #050505; }
+
+    .terminal {
+      background: #0a0a0a;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .terminal-bar {
+      background: #141414;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #1e1e1e;
+    }
+    .terminal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .terminal-bar .terminal-dot:nth-child(1) { background: #ff5f57; }
+    .terminal-bar .terminal-dot:nth-child(2) { background: #febc2e; }
+    .terminal-bar .terminal-dot:nth-child(3) { background: #28c840; }
+    .terminal-body {
+      padding: 20px 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      overflow-x: auto;
+    }
+
+    .copy-btn {
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .terminal:hover .copy-btn,
+    .code-block:hover .copy-btn {
+      opacity: 1;
+    }
+    .copy-btn.copied {
+      opacity: 1;
+    }
+
+    .feature-card {
+      background: #0a0a0a;
+      border: 1px solid #1a1a1a;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .feature-card:hover {
+      border-color: #0e7490;
+      box-shadow: 0 0 30px rgba(6, 182, 212, 0.08);
+    }
+
+    .tab-btn {
+      transition: all 0.2s;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-btn.active {
+      color: #06b6d4;
+      border-bottom-color: #06b6d4;
+    }
+    .tab-btn:hover:not(.active) {
+      color: #a5f3fc;
+    }
+
+    .nav-blur {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #06b6d4 0%, #22c55e 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, transparent 70%);
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 16px;
+      background: linear-gradient(135deg, #0e7490, #06b6d4);
+      color: #000;
+      flex-shrink: 0;
+    }
+
+    ::selection {
+      background: rgba(6, 182, 212, 0.3);
+    }
+
+    .table-row:hover {
+      background: rgba(6, 182, 212, 0.04);
+    }
+
+    @media (max-width: 768px) {
+      .terminal-body { font-size: 12px; padding: 16px; }
+      .tabs-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    }
+  </style>
+</head>
+
+<body class="text-gray-300 font-sans antialiased">
+
+  <!-- ===== NAV ===== -->
+  <nav class="fixed top-0 w-full z-50 nav-blur bg-[#050505]/80 border-b border-white/5">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="#" class="flex items-center gap-2.5">
+        <svg class="w-6 h-6 text-vault-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+        <span class="font-mono font-semibold text-white text-lg">CredsMCP</span>
+      </a>
+      <div class="hidden md:flex items-center gap-8 text-sm text-gray-400">
+        <a href="#features" class="hover:text-white transition">Features</a>
+        <a href="#quickstart" class="hover:text-white transition">Quick Start</a>
+        <a href="#integrations" class="hover:text-white transition">Integrations</a>
+        <a href="#tools" class="hover:text-white transition">Tools</a>
+        <a href="#security" class="hover:text-white transition">Security</a>
+        <a href="https://github.com/gaigenticai/CredsMCP" target="_blank" class="flex items-center gap-1.5 hover:text-white transition">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </div>
+      <!-- Mobile menu toggle -->
+      <button id="nav-toggle" class="md:hidden text-gray-400 hover:text-white">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+    <!-- Mobile nav -->
+    <div id="nav-mobile" class="hidden md:hidden border-t border-white/5 bg-[#050505]/95">
+      <div class="px-6 py-4 flex flex-col gap-3 text-sm text-gray-400">
+        <a href="#features" class="hover:text-white">Features</a>
+        <a href="#quickstart" class="hover:text-white">Quick Start</a>
+        <a href="#integrations" class="hover:text-white">Integrations</a>
+        <a href="#tools" class="hover:text-white">Tools</a>
+        <a href="#security" class="hover:text-white">Security</a>
+        <a href="https://github.com/gaigenticai/CredsMCP" target="_blank" class="hover:text-white">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== HERO ===== -->
+  <section class="relative pt-32 pb-20 md:pt-44 md:pb-32 px-6">
+    <div class="hero-glow"></div>
+    <div class="max-w-4xl mx-auto text-center relative">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-vault-500/10 border border-vault-500/20 text-vault-400 text-sm font-mono mb-8">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        MCP Server
+      </div>
+
+      <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-tight tracking-tight mb-6">
+        Your AI tools.<br>
+        <span class="gradient-text">One encrypted vault.</span>
+      </h1>
+
+      <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed">
+        Stop copy-pasting API keys. CredsMCP stores your cloud credentials in an AES-256-GCM encrypted vault and serves them to any MCP-compatible AI tool.
+      </p>
+
+      <!-- Install command -->
+      <div class="max-w-md mx-auto">
+        <div class="terminal animate-glow">
+          <div class="terminal-bar">
+            <span class="terminal-dot"></span>
+            <span class="terminal-dot"></span>
+            <span class="terminal-dot"></span>
+            <span class="text-gray-500 text-xs font-mono ml-2">terminal</span>
+          </div>
+          <div class="terminal-body flex items-center justify-between">
+            <div>
+              <span class="text-gray-500">$</span>
+              <span class="text-vault-400 ml-2">npx</span>
+              <span class="text-white ml-2">credsmcp</span>
+            </div>
+            <button onclick="copyText('npx credsmcp', this)" class="copy-btn text-gray-500 hover:text-vault-400 transition p-1" title="Copy">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tool logos -->
+      <div class="mt-12 flex items-center justify-center gap-6 md:gap-10 text-gray-600 text-xs font-mono">
+        <span class="flex items-center gap-1.5">Claude</span>
+        <span class="text-gray-700">|</span>
+        <span>Cursor</span>
+        <span class="text-gray-700">|</span>
+        <span>Windsurf</span>
+        <span class="text-gray-700">|</span>
+        <span>Codex</span>
+        <span class="text-gray-700">|</span>
+        <span>VS Code</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FEATURES ===== -->
+  <section id="features" class="py-20 md:py-28 px-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Everything you need</h2>
+        <p class="text-gray-400 max-w-lg mx-auto">Secure credential management designed for the AI-native developer workflow.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Card 1 -->
+        <div class="feature-card rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-vault-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-vault-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+          </div>
+          <h3 class="text-white font-semibold mb-2">8 MCP Tools</h3>
+          <p class="text-gray-500 text-sm leading-relaxed">List, get, set, remove, switch, verify, and export credentials. Everything an AI agent needs to manage your keys.</p>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="feature-card rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <h3 class="text-white font-semibold mb-2">3 Cloud Providers</h3>
+          <p class="text-gray-500 text-sm leading-relaxed">Cloudflare, GitHub, Railway out of the box. Each with API verification — test your credentials before you use them.</p>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="feature-card rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          </div>
+          <h3 class="text-white font-semibold mb-2">AES-256-GCM Vault</h3>
+          <p class="text-gray-500 text-sm leading-relaxed">Military-grade encryption with scrypt key derivation. Atomic writes prevent corruption. Secrets redacted by default.</p>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="feature-card rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </div>
+          <h3 class="text-white font-semibold mb-2">Multi-Profile</h3>
+          <p class="text-gray-500 text-sm leading-relaxed">Multiple credential sets per service. Switch between work, personal, and client accounts with a single tool call.</p>
+        </div>
+
+        <!-- Card 5 -->
+        <div class="feature-card rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-rose-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+          </div>
+          <h3 class="text-white font-semibold mb-2">OS Keychain</h3>
+          <p class="text-gray-500 text-sm leading-relaxed">Master password cached in macOS Keychain, Windows Credential Manager, or Linux Secret Service. Set once, forget it.</p>
+        </div>
+
+        <!-- Card 6 -->
+        <div class="feature-card rounded-xl p-6">
+          <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <h3 class="text-white font-semibold mb-2">Env Export</h3>
+          <p class="text-gray-500 text-sm leading-relaxed">Export credentials as environment variables for shell scripts, CI/CD pipelines, or any workflow that needs KEY=VALUE pairs.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== QUICK START ===== -->
+  <section id="quickstart" class="py-20 md:py-28 px-6 border-t border-white/5">
+    <div class="max-w-3xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Up and running in 60 seconds</h2>
+        <p class="text-gray-400">Three steps. No configuration files to edit manually.</p>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="flex gap-5 mb-10">
+        <div class="step-number">1</div>
+        <div class="flex-1">
+          <h3 class="text-white font-semibold mb-3">Set your master password</h3>
+          <div class="terminal">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+            </div>
+            <div class="terminal-body">
+              <span class="text-gray-500">$</span>
+              <span class="text-vault-400 ml-2">export</span>
+              <span class="text-white ml-2">CREDSMCP_PASSWORD</span><span class="text-gray-500">=</span><span class="text-green-400">"your-secure-password"</span>
+            </div>
+          </div>
+          <p class="text-gray-500 text-sm mt-3">Or let CredsMCP store it in your OS keychain automatically.</p>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="flex gap-5 mb-10">
+        <div class="step-number">2</div>
+        <div class="flex-1">
+          <h3 class="text-white font-semibold mb-3">Add to your AI tool</h3>
+          <div class="terminal">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+            </div>
+            <div class="terminal-body">
+              <div><span class="text-gray-500">$</span> <span class="text-vault-400">claude</span> <span class="text-white">mcp add</span> <span class="text-amber-400">--transport</span> <span class="text-white">stdio credsmcp</span> <span class="text-gray-500">--</span> <span class="text-green-400">npx credsmcp</span></div>
+            </div>
+          </div>
+          <p class="text-gray-500 text-sm mt-3">Works with Claude Code, Cursor, Windsurf, and more. <a href="#integrations" class="text-vault-400 hover:text-vault-300">See all integrations &darr;</a></p>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="flex gap-5">
+        <div class="step-number">3</div>
+        <div class="flex-1">
+          <h3 class="text-white font-semibold mb-3">Ask your AI to store credentials</h3>
+          <div class="terminal">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+            </div>
+            <div class="terminal-body">
+              <div class="text-gray-400 italic">"Store my Cloudflare API key for the gaigentic account"</div>
+              <div class="mt-3 text-gray-500"># The AI calls set_credentials automatically.</div>
+              <div class="text-gray-500"># Next time: "Deploy to Cloudflare" — it already has the key.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== INTEGRATIONS ===== -->
+  <section id="integrations" class="py-20 md:py-28 px-6 border-t border-white/5">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Works everywhere</h2>
+        <p class="text-gray-400">One-time setup for each tool. Copy the config, paste, done.</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs-scroll mb-8">
+        <div class="flex gap-1 border-b border-white/10 min-w-max">
+          <button class="tab-btn active px-4 py-3 text-sm font-medium text-gray-400 font-mono" data-tab="claude-code">Claude Code</button>
+          <button class="tab-btn px-4 py-3 text-sm font-medium text-gray-400 font-mono" data-tab="claude-desktop">Claude Desktop</button>
+          <button class="tab-btn px-4 py-3 text-sm font-medium text-gray-400 font-mono" data-tab="cursor">Cursor</button>
+          <button class="tab-btn px-4 py-3 text-sm font-medium text-gray-400 font-mono" data-tab="windsurf">Windsurf</button>
+          <button class="tab-btn px-4 py-3 text-sm font-medium text-gray-400 font-mono" data-tab="codex">Codex</button>
+          <button class="tab-btn px-4 py-3 text-sm font-medium text-gray-400 font-mono" data-tab="continue">Continue.dev</button>
+        </div>
+      </div>
+
+      <!-- Tab: Claude Code -->
+      <div class="tab-content" id="tab-claude-code">
+        <p class="text-gray-400 text-sm mb-4">Run this in your terminal. That's it.</p>
+        <div class="terminal relative">
+          <div class="terminal-bar">
+            <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+            <span class="text-gray-500 text-xs font-mono ml-2">terminal</span>
+            <button onclick="copyBlock('claude-code-cmd', this)" class="copy-btn ml-auto text-gray-500 hover:text-vault-400 transition p-1" title="Copy">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>
+          </div>
+          <div class="terminal-body" id="claude-code-cmd">
+<span class="text-gray-500"># Basic</span>
+<span class="text-vault-400">claude</span> mcp add <span class="text-amber-400">--transport</span> stdio credsmcp <span class="text-gray-500">--</span> npx credsmcp
+
+<span class="text-gray-500"># With password in environment</span>
+<span class="text-vault-400">claude</span> mcp add <span class="text-amber-400">--transport</span> stdio \
+  <span class="text-amber-400">--env</span> <span class="text-white">CREDSMCP_PASSWORD</span><span class="text-gray-500">=</span><span class="text-green-400">your-password</span> \
+  credsmcp <span class="text-gray-500">--</span> npx credsmcp
+
+<span class="text-gray-500"># Global (all projects)</span>
+<span class="text-vault-400">claude</span> mcp add <span class="text-amber-400">--transport</span> stdio <span class="text-amber-400">--scope</span> user credsmcp <span class="text-gray-500">--</span> npx credsmcp</div>
+        </div>
+      </div>
+
+      <!-- Tab: Claude Desktop -->
+      <div class="tab-content hidden" id="tab-claude-desktop">
+        <p class="text-gray-400 text-sm mb-2">Add to your Claude Desktop config file:</p>
+        <p class="text-gray-500 text-xs font-mono mb-4">
+          macOS: ~/Library/Application Support/Claude/claude_desktop_config.json<br>
+          Windows: %APPDATA%\Claude\claude_desktop_config.json
+        </p>
+        <div class="terminal relative">
+          <div class="terminal-bar">
+            <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+            <span class="text-gray-500 text-xs font-mono ml-2">claude_desktop_config.json</span>
+            <button onclick="copyBlock('claude-desktop-cfg', this)" class="copy-btn ml-auto text-gray-500 hover:text-vault-400 transition p-1" title="Copy">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>
+          </div>
+          <div class="terminal-body text-sm" id="claude-desktop-cfg">{
+  <span class="text-vault-400">"mcpServers"</span>: {
+    <span class="text-green-400">"credsmcp"</span>: {
+      <span class="text-amber-400">"command"</span>: <span class="text-green-400">"npx"</span>,
+      <span class="text-amber-400">"args"</span>: [<span class="text-green-400">"credsmcp"</span>],
+      <span class="text-amber-400">"env"</span>: {
+        <span class="text-amber-400">"CREDSMCP_PASSWORD"</span>: <span class="text-green-400">"your-password"</span>
+      }
+    }
+  }
+}</div>
+        </div>
+        <p class="text-gray-500 text-xs mt-3">Restart Claude Desktop after saving.</p>
+      </div>
+
+      <!-- Tab: Cursor -->
+      <div class="tab-content hidden" id="tab-cursor">
+        <p class="text-gray-400 text-sm mb-2">Add to <span class="font-mono text-gray-300">.cursor/mcp.json</span> in your project root:</p>
+        <div class="terminal relative">
+          <div class="terminal-bar">
+            <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+            <span class="text-gray-500 text-xs font-mono ml-2">.cursor/mcp.json</span>
+            <button onclick="copyBlock('cursor-cfg', this)" class="copy-btn ml-auto text-gray-500 hover:text-vault-400 transition p-1" title="Copy">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>
+          </div>
+          <div class="terminal-body text-sm" id="cursor-cfg">{
+  <span class="text-vault-400">"mcpServers"</span>: {
+    <span class="text-green-400">"credsmcp"</span>: {
+      <span class="text-amber-400">"command"</span>: <span class="text-green-400">"npx"</span>,
+      <span class="text-amber-400">"args"</span>: [<span class="text-green-400">"credsmcp"</span>],
+      <span class="text-amber-400">"env"</span>: {
+        <span class="text-amber-400">"CREDSMCP_PASSWORD"</span>: <span class="text-green-400">"your-password"</span>
+      }
+    }
+  }
+}</div>
+        </div>
+        <p class="text-gray-500 text-xs mt-3">Or use Settings &gt; Tools & Integrations &gt; New MCP Server.</p>
+      </div>
+
+      <!-- Tab: Windsurf -->
+      <div class="tab-content hidden" id="tab-windsurf">
+        <p class="text-gray-400 text-sm mb-2">Add to your Windsurf MCP config:</p>
+        <p class="text-gray-500 text-xs font-mono mb-4">
+          macOS: ~/.codeium/windsurf/mcp_config.json<br>
+          Windows: %USERPROFILE%\.codeium\windsurf\mcp_config.json
+        </p>
+        <div class="terminal relative">
+          <div class="terminal-bar">
+            <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+            <span class="text-gray-500 text-xs font-mono ml-2">mcp_config.json</span>
+            <button onclick="copyBlock('windsurf-cfg', this)" class="copy-btn ml-auto text-gray-500 hover:text-vault-400 transition p-1" title="Copy">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>
+          </div>
+          <div class="terminal-body text-sm" id="windsurf-cfg">{
+  <span class="text-vault-400">"mcpServers"</span>: {
+    <span class="text-green-400">"credsmcp"</span>: {
+      <span class="text-amber-400">"command"</span>: <span class="text-green-400">"npx"</span>,
+      <span class="text-amber-400">"args"</span>: [<span class="text-green-400">"credsmcp"</span>],
+      <span class="text-amber-400">"env"</span>: {
+        <span class="text-amber-400">"CREDSMCP_PASSWORD"</span>: <span class="text-green-400">"${CREDSMCP_PASSWORD}"</span>
+      }
+    }
+  }
+}</div>
+        </div>
+        <p class="text-gray-500 text-xs mt-3">Windsurf supports <span class="font-mono">${VAR}</span> interpolation. Set the env var in your shell profile.</p>
+      </div>
+
+      <!-- Tab: Codex -->
+      <div class="tab-content hidden" id="tab-codex">
+        <p class="text-gray-400 text-sm mb-4">Add via the Codex CLI:</p>
+        <div class="terminal relative">
+          <div class="terminal-bar">
+            <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+            <span class="text-gray-500 text-xs font-mono ml-2">terminal</span>
+            <button onclick="copyBlock('codex-cmd', this)" class="copy-btn ml-auto text-gray-500 hover:text-vault-400 transition p-1" title="Copy">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>
+          </div>
+          <div class="terminal-body" id="codex-cmd"><span class="text-gray-500">$</span> <span class="text-vault-400">codex</span> mcp add credsmcp <span class="text-gray-500">--</span> npx credsmcp</div>
+        </div>
+        <p class="text-gray-500 text-xs mt-3">Set <span class="font-mono">CREDSMCP_PASSWORD</span> in your shell profile or <span class="font-mono">~/.codex/config.toml</span>.</p>
+      </div>
+
+      <!-- Tab: Continue.dev -->
+      <div class="tab-content hidden" id="tab-continue">
+        <p class="text-gray-400 text-sm mb-2">Create <span class="font-mono text-gray-300">.continue/mcpServers/credsmcp.yaml</span> in your project:</p>
+        <div class="terminal relative">
+          <div class="terminal-bar">
+            <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+            <span class="text-gray-500 text-xs font-mono ml-2">credsmcp.yaml</span>
+            <button onclick="copyBlock('continue-cfg', this)" class="copy-btn ml-auto text-gray-500 hover:text-vault-400 transition p-1" title="Copy">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>
+          </div>
+          <div class="terminal-body text-sm" id="continue-cfg"><span class="text-vault-400">name</span>: <span class="text-green-400">credsmcp</span>
+<span class="text-vault-400">command</span>: <span class="text-green-400">npx</span>
+<span class="text-vault-400">args</span>:
+  - <span class="text-green-400">credsmcp</span>
+<span class="text-vault-400">env</span>:
+  <span class="text-amber-400">CREDSMCP_PASSWORD</span>: <span class="text-green-400">your-password</span></div>
+        </div>
+        <p class="text-gray-500 text-xs mt-3">MCP tools are available in Continue's Agent mode (not chat mode).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TOOLS REFERENCE ===== -->
+  <section id="tools" class="py-20 md:py-28 px-6 border-t border-white/5">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Tools Reference</h2>
+        <p class="text-gray-400">All 8 MCP tools your AI agent can call.</p>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10 text-left">
+              <th class="pb-3 pr-6 text-vault-400 font-mono font-medium">Tool</th>
+              <th class="pb-3 pr-6 text-gray-400 font-medium">Description</th>
+              <th class="pb-3 text-gray-400 font-medium">Parameters</th>
+            </tr>
+          </thead>
+          <tbody class="font-mono text-xs">
+            <tr class="table-row border-b border-white/5">
+              <td class="py-3 pr-6 text-vault-300">list_services</td>
+              <td class="py-3 pr-6 text-gray-400 font-sans text-sm">List supported providers and their fields</td>
+              <td class="py-3 text-gray-500">&mdash;</td>
+            </tr>
+            <tr class="table-row border-b border-white/5">
+              <td class="py-3 pr-6 text-vault-300">list_profiles</td>
+              <td class="py-3 pr-6 text-gray-400 font-sans text-sm">List configured profiles</td>
+              <td class="py-3 text-gray-500">service?</td>
+            </tr>
+            <tr class="table-row border-b border-white/5">
+              <td class="py-3 pr-6 text-vault-300">get_credentials</td>
+              <td class="py-3 pr-6 text-gray-400 font-sans text-sm">Get credentials (redacted by default)</td>
+              <td class="py-3 text-gray-500">service, profile?, reveal?</td>
+            </tr>
+            <tr class="table-row border-b border-white/5">
+              <td class="py-3 pr-6 text-vault-300">set_credentials</td>
+              <td class="py-3 pr-6 text-gray-400 font-sans text-sm">Store credentials for a service + profile</td>
+              <td class="py-3 text-gray-500">service, profile, credentials, set_default?, master_password?</td>
+            </tr>
+            <tr class="table-row border-b border-white/5">
+              <td class="py-3 pr-6 text-vault-300">remove_credentials</td>
+              <td class="py-3 pr-6 text-gray-400 font-sans text-sm">Delete a profile</td>
+              <td class="py-3 text-gray-500">service, profile</td>
+            </tr>
+            <tr class="table-row border-b border-white/5">
+              <td class="py-3 pr-6 text-vault-300">switch_default</td>
+              <td class="py-3 pr-6 text-gray-400 font-sans text-sm">Change the default profile for a service</td>
+              <td class="py-3 text-gray-500">service, profile</td>
+            </tr>
+            <tr class="table-row border-b border-white/5">
+              <td class="py-3 pr-6 text-vault-300">verify_credentials</td>
+              <td class="py-3 pr-6 text-gray-400 font-sans text-sm">Test credentials via provider API</td>
+              <td class="py-3 text-gray-500">service, profile?</td>
+            </tr>
+            <tr class="table-row">
+              <td class="py-3 pr-6 text-vault-300">export_env</td>
+              <td class="py-3 pr-6 text-gray-400 font-sans text-sm">Return credentials as KEY=VALUE env vars</td>
+              <td class="py-3 text-gray-500">service, profile?</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CUSTOM PROVIDERS ===== -->
+  <section id="providers" class="py-20 md:py-28 px-6 border-t border-white/5">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Add any provider</h2>
+        <p class="text-gray-400">One file. One interface. Automatically available to all tools.</p>
+      </div>
+
+      <p class="text-gray-400 text-sm mb-6">Every provider implements the <span class="font-mono text-vault-300">CloudProvider</span> interface:</p>
+
+      <div class="terminal mb-8">
+        <div class="terminal-bar">
+          <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+          <span class="text-gray-500 text-xs font-mono ml-2">src/providers/base.ts</span>
+        </div>
+        <div class="terminal-body text-sm"><span class="text-purple-400">interface</span> <span class="text-vault-300">CloudProvider</span> {
+  <span class="text-amber-400">name</span>: <span class="text-green-400">string</span>;           <span class="text-gray-600">// "AWS"</span>
+  <span class="text-amber-400">slug</span>: <span class="text-green-400">string</span>;           <span class="text-gray-600">// "aws"</span>
+  <span class="text-amber-400">description</span>: <span class="text-green-400">string</span>;
+  <span class="text-amber-400">requiredFields</span>: <span class="text-vault-300">FieldDefinition</span>[];
+  <span class="text-amber-400">optionalFields</span>: <span class="text-vault-300">FieldDefinition</span>[];
+  <span class="text-amber-400">verify</span>(<span class="text-white">creds</span>): <span class="text-green-400">Promise</span>&lt;<span class="text-vault-300">VerifyResult</span>&gt;;
+  <span class="text-amber-400">toEnvVars</span>(<span class="text-white">creds</span>): <span class="text-green-400">Record</span>&lt;<span class="text-green-400">string</span>, <span class="text-green-400">string</span>&gt;;
+}</div>
+      </div>
+
+      <p class="text-gray-400 text-sm mb-6">Example: adding AWS as a provider:</p>
+
+      <div class="terminal mb-6">
+        <div class="terminal-bar">
+          <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+          <span class="text-gray-500 text-xs font-mono ml-2">src/providers/aws.ts</span>
+        </div>
+        <div class="terminal-body text-sm"><span class="text-purple-400">import type</span> { <span class="text-vault-300">CloudProvider</span> } <span class="text-purple-400">from</span> <span class="text-green-400">"./base.js"</span>;
+
+<span class="text-purple-400">export const</span> <span class="text-white">aws</span>: <span class="text-vault-300">CloudProvider</span> = {
+  <span class="text-amber-400">name</span>: <span class="text-green-400">"AWS"</span>,
+  <span class="text-amber-400">slug</span>: <span class="text-green-400">"aws"</span>,
+  <span class="text-amber-400">description</span>: <span class="text-green-400">"Amazon Web Services"</span>,
+
+  <span class="text-amber-400">requiredFields</span>: [
+    { <span class="text-amber-400">key</span>: <span class="text-green-400">"access_key_id"</span>, <span class="text-amber-400">label</span>: <span class="text-green-400">"Access Key ID"</span>, <span class="text-amber-400">secret</span>: <span class="text-purple-400">true</span> },
+    { <span class="text-amber-400">key</span>: <span class="text-green-400">"secret_access_key"</span>, <span class="text-amber-400">label</span>: <span class="text-green-400">"Secret Access Key"</span>, <span class="text-amber-400">secret</span>: <span class="text-purple-400">true</span> },
+  ],
+  <span class="text-amber-400">optionalFields</span>: [
+    { <span class="text-amber-400">key</span>: <span class="text-green-400">"region"</span>, <span class="text-amber-400">label</span>: <span class="text-green-400">"Default Region"</span>, <span class="text-amber-400">secret</span>: <span class="text-purple-400">false</span> },
+  ],
+
+  <span class="text-purple-400">async</span> <span class="text-amber-400">verify</span>(<span class="text-white">creds</span>) {
+    <span class="text-gray-600">// Call AWS STS GetCallerIdentity</span>
+    <span class="text-purple-400">return</span> { <span class="text-amber-400">ok</span>: <span class="text-purple-400">true</span>, <span class="text-amber-400">message</span>: <span class="text-green-400">"AWS verified"</span> };
+  },
+
+  <span class="text-amber-400">toEnvVars</span>(<span class="text-white">creds</span>) {
+    <span class="text-purple-400">return</span> {
+      <span class="text-white">AWS_ACCESS_KEY_ID</span>: creds.<span class="text-white">access_key_id</span>,
+      <span class="text-white">AWS_SECRET_ACCESS_KEY</span>: creds.<span class="text-white">secret_access_key</span>,
+    };
+  },
+};</div>
+      </div>
+
+      <p class="text-gray-400 text-sm">Then add it to <span class="font-mono text-vault-300">src/providers/registry.ts</span> — import and push to the providers array. Rebuild, done.</p>
+    </div>
+  </section>
+
+  <!-- ===== SECURITY ===== -->
+  <section id="security" class="py-20 md:py-28 px-6 border-t border-white/5">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Security first</h2>
+        <p class="text-gray-400">Your credentials never leave your machine unencrypted.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-12">
+        <div class="feature-card rounded-xl p-6">
+          <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+            <svg class="w-4 h-4 text-vault-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            Encryption
+          </h3>
+          <p class="text-gray-500 text-sm">AES-256-GCM with 12-byte random IV and 16-byte authentication tag. Tamper-proof — any modification invalidates the ciphertext.</p>
+        </div>
+        <div class="feature-card rounded-xl p-6">
+          <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+            <svg class="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+            Key Derivation
+          </h3>
+          <p class="text-gray-500 text-sm">scrypt with N=2<sup>17</sup> (131,072), r=8, p=1. Memory-hard — requires 128MB RAM per derivation. Resistant to GPU and ASIC attacks.</p>
+        </div>
+        <div class="feature-card rounded-xl p-6">
+          <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+            <svg class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+            Storage
+          </h3>
+          <p class="text-gray-500 text-sm"><span class="font-mono text-xs">~/.credsmcp/vault.json</span> with <span class="font-mono text-xs">0600</span> permissions. Atomic writes via temp file + rename — no corruption on crash or power loss.</p>
+        </div>
+        <div class="feature-card rounded-xl p-6">
+          <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+            <svg class="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+            Redaction
+          </h3>
+          <p class="text-gray-500 text-sm">API keys shown as <span class="font-mono text-xs text-vault-300">8a06...7384</span> by default. Full reveal requires explicit <span class="font-mono text-xs">reveal: true</span> parameter.</p>
+        </div>
+      </div>
+
+      <!-- Vault format -->
+      <p class="text-gray-400 text-sm mb-4">Vault file format — what's actually on disk:</p>
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+          <span class="text-gray-500 text-xs font-mono ml-2">~/.credsmcp/vault.json</span>
+        </div>
+        <div class="terminal-body text-sm">{
+  <span class="text-vault-400">"version"</span>: <span class="text-purple-400">1</span>,
+  <span class="text-vault-400">"kdf"</span>: <span class="text-green-400">"scrypt"</span>,
+  <span class="text-vault-400">"kdfParams"</span>: {
+    <span class="text-amber-400">"salt"</span>: <span class="text-green-400">"a3f8...hex...9b21"</span>,
+    <span class="text-amber-400">"N"</span>: <span class="text-purple-400">131072</span>,
+    <span class="text-amber-400">"r"</span>: <span class="text-purple-400">8</span>,
+    <span class="text-amber-400">"p"</span>: <span class="text-purple-400">1</span>
+  },
+  <span class="text-vault-400">"payload"</span>: {
+    <span class="text-amber-400">"iv"</span>: <span class="text-green-400">"b7c4...hex...2e91"</span>,
+    <span class="text-amber-400">"tag"</span>: <span class="text-green-400">"f1a2...hex...8d3c"</span>,
+    <span class="text-amber-400">"ciphertext"</span>: <span class="text-green-400">"9e2f...hex...4a7b"</span>
+  }
+}
+<span class="text-gray-600">// That's it. Just hex. No plaintext ever touches disk.</span></div>
+      </div>
+
+      <!-- Password resolution -->
+      <div class="mt-10">
+        <p class="text-gray-400 text-sm mb-4">Master password resolution order:</p>
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-3">
+            <span class="w-7 h-7 rounded-full bg-vault-500/20 text-vault-400 flex items-center justify-center text-xs font-mono font-bold">1</span>
+            <span class="text-gray-300 text-sm"><span class="font-mono text-vault-300">CREDSMCP_PASSWORD</span> environment variable</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="w-7 h-7 rounded-full bg-vault-500/20 text-vault-400 flex items-center justify-center text-xs font-mono font-bold">2</span>
+            <span class="text-gray-300 text-sm">OS keychain (macOS Keychain / Windows Credential Manager / Linux libsecret)</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="w-7 h-7 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-xs font-mono font-bold">3</span>
+            <span class="text-gray-300 text-sm">Error with setup instructions (never prompts interactively)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="py-12 px-6 border-t border-white/5">
+    <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-2.5">
+        <svg class="w-5 h-5 text-vault-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        <span class="font-mono text-sm text-gray-400">CredsMCP</span>
+        <span class="text-gray-600 text-sm">by</span>
+        <a href="https://gaigentic.ai" target="_blank" class="text-gray-400 hover:text-white text-sm transition font-semibold">gaigentic<span class="text-red-500">.ai</span></a>
+      </div>
+      <div class="flex items-center gap-6 text-sm text-gray-500">
+        <a href="https://github.com/gaigenticai/CredsMCP" target="_blank" class="hover:text-gray-300 transition">GitHub</a>
+        <a href="https://www.npmjs.com/package/credsmcp" target="_blank" class="hover:text-gray-300 transition">npm</a>
+        <span class="text-gray-700">MIT License</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===== JAVASCRIPT ===== -->
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+      });
+    });
+
+    // Mobile nav toggle
+    document.getElementById('nav-toggle').addEventListener('click', () => {
+      document.getElementById('nav-mobile').classList.toggle('hidden');
+    });
+
+    // Close mobile nav on link click
+    document.querySelectorAll('#nav-mobile a').forEach(a => {
+      a.addEventListener('click', () => {
+        document.getElementById('nav-mobile').classList.add('hidden');
+      });
+    });
+
+    // Copy text to clipboard
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.classList.add('copied');
+        const svg = btn.querySelector('svg');
+        const original = svg.innerHTML;
+        svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>';
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          svg.innerHTML = original;
+        }, 2000);
+      });
+    }
+
+    // Copy code block content
+    function copyBlock(id, btn) {
+      const el = document.getElementById(id);
+      const text = el.textContent.trim();
+      copyText(text, btn);
+    }
+  </script>
+
+</body>
+</html>

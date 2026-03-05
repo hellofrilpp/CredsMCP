@@ -1,13 +1,46 @@
 {
   "name": "credsmcp",
   "version": "1.0.0",
-  "description": "Cross-platform credential manager MCP server",
+  "description": "Encrypted credential manager MCP server for AI coding tools. Securely store and serve API keys for Cloudflare, GitHub, Railway and more.",
   "type": "module",
   "main": "build/index.js",
+  "bin": {
+    "credsmcp": "build/index.js"
+  },
+  "files": [
+    "build",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node build/index.js"
+    "start": "node build/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "credentials",
+    "credential-manager",
+    "model-context-protocol",
+    "claude",
+    "cursor",
+    "windsurf",
+    "codex",
+    "ai",
+    "vault",
+    "encrypted",
+    "api-keys"
+  ],
+  "author": "Krishna <krishna@gaigentic.ai>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gaigenticai/CredsMCP.git"
+  },
+  "homepage": "https://gaigenticai.github.io/CredsMCP",
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
